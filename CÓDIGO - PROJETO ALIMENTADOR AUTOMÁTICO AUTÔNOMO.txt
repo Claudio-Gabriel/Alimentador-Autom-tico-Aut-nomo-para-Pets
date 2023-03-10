@@ -1,0 +1,111 @@
+//PROJETO ALIMENTADOR AUTOMÁTICO AUTÔNOMO 
+
+#include <Servo.h>
+#include <LiquidCrystal.h>           //Bibliotecas do Servo e do LCD (Orientado Objeto)
+
+#define LED_VERMELHO  2
+#define LED_AZUL      3
+#define UltraPote     13              //Definição dos LED, Servo e Sensor Ultrassom
+#define UltraReserv   7
+Servo servo_pin_4;
+
+const int shortDelay = 10;
+const int triggerDelay = 25;        //Variáveis de delay para o Sensor Ultrassom
+const int tempo = 300;
+
+LiquidCrystal lcd(12,11,10,9,8,5);  // definição dos pinos do Display 
+bool start = true;
+
+void setup()   // configura os pinos da placa e estabelece a comunicação serial com um computador(INPUT ou OUTPUT)
+{
+  servo_pin_4.attach(4);//define servo no pino 4
+  pinMode(LED_VERMELHO, OUTPUT);//LED Vermelho é saida
+  pinMode(LED_AZUL, OUTPUT);//LED Azul é saida
+  lcd.begin(16, 2);//inicia o LCD e define  o tamanho
+}
+
+void loop()//repete-se consecutivamente enquanto a placa estiver ligada
+{
+  if (start)//para iniciar o servo sem que ele gire º
+  {
+  	servo_pin_4.write(0);
+    start = false;
+  }
+  
+  long tempoUltraPote=0;
+  float distanciaUltraPote=0;
+  // Emitir o pulso de ultrassom do pote de ração
+  pinMode(UltraPote, OUTPUT);
+  digitalWrite(UltraPote, LOW);
+  delayMicroseconds(shortDelay);
+  digitalWrite(UltraPote, HIGH);
+  delayMicroseconds(triggerDelay);
+  pinMode(UltraPote, INPUT);
+  tempoUltraPote = pulseIn(UltraPote, HIGH);
+  distanciaUltraPote = tempoUltraPote / 58.8;//formula para calcular em cm
+  
+  long tempoUltraReserv=0;
+  float distanciaUltraReserv=0;
+  // Emitir o pulso de ultrassom do Reservatorio de ração
+  pinMode(UltraReserv, OUTPUT);
+  digitalWrite(UltraReserv, LOW);
+  delayMicroseconds(shortDelay);
+  digitalWrite(UltraReserv, HIGH);
+  delayMicroseconds(triggerDelay);
+  pinMode(UltraReserv, INPUT);
+  tempoUltraReserv = pulseIn(UltraReserv, HIGH);
+  distanciaUltraReserv = tempoUltraReserv / 58.8;//formula para calcular em cm
+  
+  lcd.setCursor(6,1);//coluna 6 linha 1
+  lcd.print("cm");//emite cm na tela
+  
+  if (distanciaUltraPote < 50 && distanciaUltraReserv <70)//distacia <50 rotaciona o servo posição 0º 
+    {
+    servo_pin_4.write(0);//retorna o servo para posição inicial
+    delay(tempo);  
+  }
+
+  else if(distanciaUltraPote >= 50 && distanciaUltraReserv <70)//distacia >=50 rotaciona o servo posição 180º
+    {
+    servo_pin_4.write(180);//avança o servo para a posição máxima
+    delay(tempo);
+    }
+  
+  if (distanciaUltraReserv < 50)//distacia <50 executa função recipiete_cheio();
+  {//emite no LCD estado do reservatório
+    recipiente_cheio();
+    lcd.setCursor(0,1);
+    lcd.print(distanciaUltraReserv);
+    delay(tempo);
+  }
+   else if (distanciaUltraReserv >= 50)//distacia >=50 executa função recipiente_vazio();
+  {//emite no LCD estado do reservatório
+    recipiente_vazio();
+    lcd.setCursor(0,1);
+    lcd.print(distanciaUltraReserv);
+    delay(tempo);
+  }
+  
+  delay(100);
+}
+
+void recipiente_vazio()//Sem ração no reservatório
+{
+digitalWrite(LED_VERMELHO, HIGH);//LED fica piscando
+digitalWrite(LED_AZUL, LOW);   //LED desligado
+Serial.begin(9600);
+lcd.setCursor(0,0);
+lcd.print("RECIPIENTE VAZIO");//Emite no LDC estado do reservatório
+delay(tempo);
+digitalWrite(LED_VERMELHO, LOW);
+}
+
+void recipiente_cheio()//Com ração no reservatório
+{
+digitalWrite(LED_VERMELHO, LOW);//LED Desligado
+digitalWrite(LED_AZUL, HIGH);   //LED Ligado
+Serial.begin(9600);
+lcd.setCursor(0,0);
+lcd.print("RECIPIENTE CHEIO");//Emite no LDC estado do reservatório
+delay(tempo);
+}
